@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"name": "Data Visualization",
+			"path": "."
+		},
+		{
+			"name": "SDP",
+			"path": "../../../SDP/Metal Detection Visualization/SDP"
+		}
+	],
+	"settings": {}
+}
