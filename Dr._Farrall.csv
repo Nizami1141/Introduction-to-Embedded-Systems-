@@ -1,0 +1,5 @@
+timestamp,player,opponent,role,winner,reaction_time_ms,false_start,score1,score2,match_complete
+2026-05-07 17:51:24,Dr. Farrall,Nizami,P2,Dr. Farrall,294,0,0,1,0
+2026-05-07 17:51:35,Dr. Farrall,Nizami,P2,Dr. Farrall,0,0,0,2,0
+2026-05-07 17:51:39,Dr. Farrall,Nizami,P2,Dr. Farrall,380,0,0,3,0
+2026-05-07 17:51:46,Dr. Farrall,Nizami,P2,Dr. Farrall,,,0,3,1
