@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contactless Security Dashboard</title>
+    <style>
+        /* Минималистичный и профессиональный дизайн */
+        :root {
+            --bg-color: #f4f5f7;
+            --panel-bg: #ffffff;
+            --text-main: #2c3e50;
+            --text-muted: #7f8c8d;
+            --border-color: #e0e6ed;
+            --accent-blue: #3498db;
+            --state-locked: #e74c3c;
+            --state-unlocked: #2ecc71;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+            display: flex;
+            flex-direction: column;
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            color: var(--text-main);
+            border-bottom: 2px solid var(--bg-color);
+            padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Status Indicators */
+        .status-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .bg-gray { background-color: var(--text-muted); }
+        .bg-red { background-color: var(--state-locked); }
+        .bg-green { background-color: var(--state-unlocked); }
+        .bg-blue { background-color: var(--accent-blue); }
+
+        /* Terminal/Event Log */
+        .log-container {
+            flex-grow: 1;
+            background-color: #1e1e1e;
+            color: #a9b7c6;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 0.9rem;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-y: auto;
+            max-height: 400px;
+            display: flex;
+            flex-direction: column-reverse; /* Новые события снизу */
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 3px;
+        }
+
+        .log-time { color: #629755; margin-right: 10px; }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #f8f9fa;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+
+        tr:hover { background-color: #f9fbfc; }
+
+        /* Buttons */
+        .btn {
+            background-color: var(--text-main);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: opacity 0.2s;
+        }
+
+        .btn:hover { opacity: 0.8; }
+        .btn-danger { background-color: var(--state-locked); }
+
+        /* Layout specific */
+        .left-column { display: flex; flex-direction: column; gap: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard">
+        
+        <div class="left-column">
+            <div class="panel">
+                <h2>System Status</h2>
+                
+                <div class="status-box">
+                    <span>Connection:</span>
+                    <span id="conn-state" class="badge bg-gray">WAITING</span>
+                </div>
+                
+                <div class="status-box">
+                    <span>Security State:</span>
+                    <span id="sys-state" class="badge bg-gray">UNKNOWN</span>
+                </div>
+            </div>
+
+            <div class="panel" style="flex-grow: 1;">
+                <h2>Event Log (Terminal)</h2>
+                <div class="log-container" id="event-log">
+                    </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>
+                RFID Tag Database
+                <button class="btn btn-danger" onclick="clearDatabase()">Clear DB</button>
+            </h2>
+            <div style="overflow-y: auto; max-height: 600px;">
+                <table id="tags-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>UID</th>
+                            <th>First Seen</th>
+                            <th>Last Seen</th>
+                            <th>Scans</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Функция обновления статуса и логов
+        async function fetchStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+
+                // Обновляем бейдж подключения
+                const connBadge = document.getElementById('conn-state');
+                if (data.state === "DISCONNECTED") {
+                    connBadge.textContent = "DISCONNECTED";
+                    connBadge.className = "badge bg-red";
+                } else {
+                    connBadge.textContent = "CONNECTED";
+                    connBadge.className = "badge bg-blue";
+                }
+
+                // Обновляем бейдж состояния системы (LOCKED/UNLOCKED)
+                const sysBadge = document.getElementById('sys-state');
+                sysBadge.textContent = data.state;
+                if (data.state === "LOCKED") {
+                    sysBadge.className = "badge bg-red";
+                } else if (data.state === "UNLOCKED") {
+                    sysBadge.className = "badge bg-green";
+                } else {
+                    sysBadge.className = "badge bg-gray";
+                }
+
+                // Обновляем терминал
+                const logContainer = document.getElementById('event-log');
+                logContainer.innerHTML = '';
+                data.events.forEach(event => {
+                    const div = document.createElement('div');
+                    div.className = 'log-entry';
+                    div.innerHTML = `<span class="log-time">[${event.time}]</span> ${event.message}`;
+                    logContainer.appendChild(div);
+                });
+
+            } catch (error) {
+                console.error("Error fetching status:", error);
+            }
+        }
+
+        // Функция обновления таблицы меток
+        async function fetchTags() {
+            try {
+                const response = await fetch('/api/tags');
+                const tags = await response.json();
+                
+                const tbody = document.querySelector('#tags-table tbody');
+                tbody.innerHTML = ''; // Очищаем старые данные
+
+                tags.forEach(tag => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${tag.id}</td>
+                        <td style="font-family: monospace; font-weight: bold;">${tag.uid}</td>
+                        <td>${tag.first_seen}</td>
+                        <td>${tag.last_seen}</td>
+                        <td><strong>${tag.scan_count}</strong></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error("Error fetching tags:", error);
+            }
+        }
+
+        // Функция очистки базы данных
+        async function clearDatabase() {
+            if (confirm("Are you sure you want to delete all RFID records?")) {
+                await fetch('/api/tags/clear', { method: 'POST' });
+                fetchTags(); // Сразу обновляем таблицу
+            }
+        }
+
+        // Запускаем поллинг (опрос сервера)
+        setInterval(fetchStatus, 1000); // Раз в секунду для логов
+        setInterval(fetchTags, 2000);   // Раз в 2 секунды для базы данных
+        
+        // Первый вызов при загрузке страницы
+        fetchStatus();
+        fetchTags();
+    </script>
+</body>
+</html>
